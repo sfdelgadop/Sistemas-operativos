@@ -1,2 +1,2 @@
 # Sistemas-operativos
-proyecto de so
+proyecto de so primera versión
