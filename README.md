@@ -1,2 +1,2 @@
 # Sistemas-operativos
-proyecto se so
+proyecto de so
