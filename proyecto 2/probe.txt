@@ -1,0 +1,7 @@
+Nombre: pepan
+Tipo: perra
+Edad: 15
+Raza: fea
+Tamaño: 23
+Peso: 32.699219
+Genero: F
