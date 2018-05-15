@@ -1,0 +1,70 @@
+gcc -c main.c //compila el archivo
+gcc -o nombre main.o //crea el ejecutable
+
+gcc mathfun.c -o ejecutable-lm
+
+objetivo: dependencias
+	  comando 1
+	  comando 2
+	  comando 3
+///////////////////////////////////////////////////////////////////////////////////////////////////////
+Makefile
+all: ejecutable clean ejecutar
+
+ejecutar:
+	reset
+	./ejecutable
+
+ejecutable: main.o
+	gcc -o ejecutable main.o
+
+main.o: main.c
+	gcc -c main.c
+clear:
+	rm -f ejecutable
+	rm -f *o
+clean:
+	rm -f *o
+
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+Makefile 2
+
+all: ejecutable ejecutar
+
+ejecutar: ejecutable
+	reset
+	./ejecutable
+
+ejecutable: main.c
+	gcc main.c -o ejecutable
+
+clear:
+	rm -f ejecutable
+
+
+/////////////////////////////////////////////////////////////////////////////////////////////////////////
+ejecutar compilar limpiar
+
+
+Makefile 3
+
+variables
+CC = gcc
+Execute = exe
+source = ultimate.c
+
+all: ejecutable ejecutar
+
+ejecutar: ejecutable
+	reset
+	./ejecutable
+
+ejecutable: main.c
+	$(CC) main.c -o ejecutable
+
+clear:
+	rm -f ejecutable
+
+

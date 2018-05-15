@@ -1,0 +1,40 @@
+git: es un sistema de control de versiones
+
+git log historial con todo
+git log --stat
+
+
+
+git init		iniciar un repositorio
+git status		muestra lo que tiene
+touch u			crea unchivos con ese nombre
+git add u		añade el archivo para su seguimiento
+git reset u		para devolverse
+git add --all		añadirlos todos (mi mejor amigo)	git add *
+git commit		se guarda el estado actual 
+git commit -m "mensaje"	se guarda el estado actual con un mensajito
+git reset --soft idco	se devuelve a una versión anterior con los archivos listos para ser añadidos
+git reset ---mixed idec	se devuelve a una versión anterior con los archivos sin estar listos para el commit
+git reset ---hard idec	se devuelve a un estado anterior cambiandolo todo a ese estado
+git revert idc		quitar los cambios realizados en un commit
+git chechout idec	es para revisar el programa en un estado anterior (solo lectura)
+git chechout master	para volver al estado normal
+.gitignore		un archivo para especificar los archivos a ignorar
+git clone "httpblabla"	esta es un clásico
+git push -u origin master	tomar todo lo que tengo y subirlo con push
+git pull
+
+
+
+
+//consultar ramas
+
+correo monitor: juasmartinezbel
+blog de la nacho
+
+
+
+
+
+
+
