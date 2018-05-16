@@ -1,0 +1,7 @@
+Nombre: Abanero
+Tipo: gato
+Edad: 26
+Raza: pequeño
+Tamaño: 38
+Peso: 2.103648
+Genero: H

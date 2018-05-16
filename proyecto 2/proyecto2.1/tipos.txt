@@ -1,0 +1,6 @@
+perro
+gato
+ave
+hamster
+pez
+tortuga
