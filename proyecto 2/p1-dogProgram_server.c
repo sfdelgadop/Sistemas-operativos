@@ -8,9 +8,13 @@
 #include <netinet/in.h>
 #include <errno.h>
 #include <netdb.h>
+#include <pthread.h>
+#include <time.h>
 
 #define NAME 32
 #define BACKLOG 8
+#define NUMTHREADS 32
+
 
 struct dogType{//estructura DogType
 	char name[32];
@@ -228,45 +232,73 @@ int search_f(int hashList[], char name[], int i){//función para buscar en el ar
 	}
 }
 
-int main () {
+void log_doc(int regis, int operat){
+	char ip[12] = "192.168.0.6";
+	FILE *fp;
+	fp = fopen("serverDogs.log","a");
+	time_t tiempo = time(0);
+	struct tm *tlocal = localtime(&tiempo);
+	char output[128];
+	strftime(output,128,"%Y/%m/%d %H:%M:%S",tlocal);
+	fprintf(fp,"\n %s ",output);
+	fprintf(fp,"%s",ip);
+	switch(operat){
+		case 1:
+			fprintf(fp," inserción");	
+			break;
+		case 2:
+			fprintf(fp," lectura");	
+			break;
+		case 3:
+			fprintf(fp," borrado");
+			break;
+		case 4:
+			fprintf(fp," búsqueda");	
+			break;
+		default:
+			break;		
+	}
+	fprintf(fp," %d",regis);
+	fclose(fp);
+}
 
-	int servfd,clientfd;
+void log_doc_name(char name[], int operat){
+	char ip[12] = "192.168.0.6";
+	FILE *fp;
+	fp = fopen("serverDogs.log","a");
+	time_t tiempo = time(0);
+	struct tm *tlocal = localtime(&tiempo);
+	char output[128];
+	strftime(output,128,"%Y/%m/%d %H:%M:%S",tlocal);
+	fprintf(fp,"\n %s ",output);
+	fprintf(fp," %s",ip);
+	switch(operat){
+		case 1:
+			fprintf(fp," insercion");	
+			break;
+		case 2:
+			fprintf(fp," lectura");	
+			break;
+		case 3:
+			fprintf(fp," borrado");
+			break;
+		case 4:
+			fprintf(fp," busqueda");	
+			break;
+		default:
+			break;		
+	}
+	fprintf(fp," %s",name);
+	fclose(fp);
+}
+
+
+void *function(void *args) {// la función para todooooo
+	int clientfd = *(int*)args;
+	printf("%d \n ",clientfd);
 	int r , position = 0, regiNum = 0, searchDat = 0,eleccion = 0, delDat = 0, plaSea1 = 0,plaSea2 = 0;
 	int option = 1;
 	char name[32];
-
-	struct sockaddr_in server,cliente;
-	socklen_t tama,tamac;
-	servfd = socket(AF_INET,SOCK_STREAM,0);
-	setsockopt(servfd, SOL_SOCKET, SO_REUSEADDR, &option, sizeof(option));//que putas hace buscar
-	if(servfd == -1){
-		printf("error en el socket");
-		return 0;
-	}
-	server.sin_family = AF_INET;
-	server.sin_port = htons(3536);//htons sirve para evitar en endianismo
-	server.sin_addr.s_addr = INADDR_ANY;
-	bzero(server.sin_zero,8);
-	tama = sizeof(struct sockaddr_in);
-	r = bind(servfd,(struct sockaddr *)&server,tama);
-	if(r == -1){
-		perror("error en el socket");
-		exit(-1);
-	}
-	r = listen(servfd,BACKLOG);
-	if(r == -1){
-		perror("error en el listen");
-		exit(-1);
-	}
-	tamac=0;
-	clientfd = accept(servfd,(struct sockaddr *)&cliente,&tamac);
-	if(clientfd == -1){
-		perror("error en el accept");
-		exit(-1);
-	}
-
-//	r=send(clientfd,"hola Mundo",MSGSIZE,0);
-	
 	int hashList[1000000];
 	for(int j = 0;j<1000000;j++)
 		hashList[j]=0;
@@ -296,6 +328,7 @@ int main () {
 						printf("salí de 1\n");
 						optionInMenu = false;
 					}
+					log_doc(position,option);
 				}
 				break;
 			case 2:
@@ -314,6 +347,8 @@ int main () {
 						printf("salí de 2\n");
 						optionInMenu = false;
 					}
+					
+					log_doc(searchDat,option);
 				}
 				break;
 			case 3:
@@ -331,11 +366,15 @@ int main () {
 						printf("salí de 3\n");
 						optionInMenu = false;
 					}
+					log_doc(delDat,option);
 				}
 			
 				break;
 			case 4:
 				while (optionInMenu == true){
+					for(int j = 0;j<1000000;j++)//se vuelve a ejecutar la funcion de hash para agregar el nuevo elemento
+						hashList[j]=0;
+					hashing(hashList);
 					printf("estoy en 4\n");
 					r = recv(clientfd ,name ,NAME ,0 );
 					printf("%s",name);
@@ -350,6 +389,7 @@ int main () {
 						printf("salí de 4\n");
 						optionInMenu = false;
 					}
+					log_doc_name(name,option);
 				}
 				break;
 			case 5:
@@ -360,4 +400,50 @@ int main () {
 				break;
 		}
 	}
+	close(clientfd);
+}
+
+
+int main () {
+	pthread_t hilo[NUMTHREADS];
+	int servfd,clientfd[NUMTHREADS];
+	int r , position = 0, regiNum = 0, searchDat = 0,eleccion = 0, delDat = 0, plaSea1 = 0,plaSea2 = 0,i=0;
+	int option = 1,tru=0;
+	char name[32];
+
+	struct sockaddr_in server,cliente;
+	socklen_t tama,tamac;
+	servfd = socket(AF_INET,SOCK_STREAM,0);
+	setsockopt(servfd, SOL_SOCKET, SO_REUSEADDR, &option, sizeof(option));//que putas hace buscar
+	if(servfd == -1){
+		printf("error en el socket");
+		return 0;
+	}
+	server.sin_family = AF_INET;
+	server.sin_port = htons(3536);//htons sirve para evitar en endianismo
+	server.sin_addr.s_addr = INADDR_ANY;
+	bzero(server.sin_zero,8);
+	tama = sizeof(struct sockaddr_in);
+	r = bind(servfd,(struct sockaddr *)&server,tama);
+	if(r == -1){
+		perror("error en el socket");
+		exit(-1);
+	}
+	tamac=0;
+	while(tru == 0){
+		r = listen(servfd,BACKLOG);
+		if(r == -1){
+			perror("error en el listen");
+			exit(-1);
+		}
+		
+		clientfd[i] = accept(servfd,(struct sockaddr *)&cliente,&tamac); // se hace la conexión con el cliente y existe un arreglo de direcciones de cliente
+
+		if(clientfd[i] == -1){
+			perror("error en el accept");
+			exit(-1);
+		}
+		r = pthread_create(&hilo[i],NULL, function, (void*)&clientfd[i]); // se crea el hilo y se envía la dirección del cliente 
+		i++;
+	}	
 }
