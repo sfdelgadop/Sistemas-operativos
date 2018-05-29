@@ -10,11 +10,21 @@
 #include <netdb.h>
 #include <pthread.h>
 #include <time.h>
+#include <semaphore.h> 
+#include <fcntl.h>
+#include <sys/stat.h>
+
 
 #define NAME 32
 #define BACKLOG 8
 #define NUMTHREADS 32
+#define SEMINIT 1
+#define CHAR 1
 
+
+int pipefd [2];
+sem_t *semaforo;
+pthread_mutex_t mux;
 
 struct dogType{//estructura DogType
 	char name[32];
@@ -199,7 +209,8 @@ void buscar_registro(int searchDat){//función para buscar el registro
 
 int search_i(int hashList[], char name[]){//función para buscar en el archivo
 	FILE *fp;
-	int aux=0,i;
+	FILE *fp2;
+	int aux = 0, i;
 	fp = fopen("dataDogs.dat","rb+");
 	i = hashList[hash(name)];//se llama a hash
 	if(hashList[hash(name)]==0){
@@ -207,29 +218,39 @@ int search_i(int hashList[], char name[]){//función para buscar en el archivo
 		return 0;
 	}
 	fseek(fp,i*sizeof(struct dogType),SEEK_SET);//se va a la posicion solicitada
-	struct dogType pet;
-	fread(&pet,sizeof(struct dogType),1,fp);
-	fclose(fp);
-	return i;
-}
-
-int search_f(int hashList[], char name[], int i){//función para buscar en el archivo
-	FILE *fp;
-	int aux=0;
-	fp = fopen("dataDogs.dat","rb+");
-	fseek(fp,i*sizeof(struct dogType),SEEK_SET);//se va a la posicion solicitada
-	struct dogType pet;
-	fread(&pet,sizeof(struct dogType),1,fp);
-	while(aux==0){//se imprime toda las lista con el mismo nombre
+	struct dogType newPet;
+	fread(&newPet,sizeof(struct dogType),1,fp);
+	
+	fp2 = fopen("probe2.txt","a+");//todo se sube a la pantalla de vizualisación
+	fprintf(fp2,"Nombre: %s\n",newPet.name);
+	fprintf(fp2,"Tipo: %s\n",newPet.type);
+	fprintf(fp2,"Edad: %i\n",newPet.age);
+	fprintf(fp2,"Raza: %s\n",newPet.race);
+	fprintf(fp2,"Tamaño: %i\n",newPet.height);
+	fprintf(fp2,"Peso: %f\n",newPet.weight);
+	fprintf(fp2,"Genero: %s\n\n",newPet.gender);	
+	
+	while(aux == 0){//se imprime toda las lista con el mismo nombre
+		printf("so puta vida \n");
 		struct dogType pet2;
 		fread(&pet2,sizeof(struct dogType),1,fp);
-		if(strcmp(name,pet2.name) == 0){
-			i += 1;
+		if(strcmp(to_lower(name),to_lower(pet2.name)) == 0){
+			fprintf(fp2,"Nombre: %s\n",pet2.name);
+			fprintf(fp2,"Tipo: %s\n",pet2.type);
+			fprintf(fp2,"Edad: %i\n",pet2.age);
+			fprintf(fp2,"Raza: %s\n",pet2.race);
+			fprintf(fp2,"Tamaño: %i\n",pet2.height);
+			fprintf(fp2,"Peso: %f\n",pet2.weight);
+			fprintf(fp2,"Genero: %s\n\n",pet2.gender);	
 		}else{
-			fclose(fp);
-			return i-1;
+			aux = 1;
 		}
 	}
+	fclose(fp2);	
+	fclose(fp);
+	system("gedit probe2.txt");
+	remove("probe2.txt");
+	return i;
 }
 
 void log_doc(int regis, int operat){
@@ -294,6 +315,8 @@ void log_doc_name(char name[], int operat){
 
 
 void *function(void *args) {// la función para todooooo
+	char ass;
+
 	int clientfd = *(int*)args;
 	printf("%d \n ",clientfd);
 	int r , position = 0, regiNum = 0, searchDat = 0,eleccion = 0, delDat = 0, plaSea1 = 0,plaSea2 = 0;
@@ -309,6 +332,7 @@ void *function(void *args) {// la función para todooooo
 		printf("estoy en menú\n");
 		int optionInMenuAux = 0;
 		int option = 0;
+		int r;
 		bool optionInMenu = true;
 		r = recv(clientfd,&option,sizeof(int),0);
 		switch(option){
@@ -317,18 +341,44 @@ void *function(void *args) {// la función para todooooo
 					printf("estoy en 1\n");
 					struct dogType newPet;
 					r = recv(clientfd,&newPet,sizeof(struct dogType),0);
+
+					pthread_mutex_lock(&mux);//zona crítica
+					sem_wait(semaforo);//zona crítica
+					r = read(pipefd[0],&ass,CHAR);//zona crítica
 					position = crear_registro(newPet);
+					write(pipefd[1],"H",CHAR);//Fin
+					sem_post(semaforo);//Fin
+					pthread_mutex_unlock(&mux);//Fin
+
+										
 					printf("%d \n",position);
 					r = send(clientfd ,&position ,sizeof(int),0);
 					for(int j = 0;j<1000000;j++)//se vuelve a ejecutar la funcion de hash para agregar el nuevo elemento
 						hashList[j]=0;
+					
+					pthread_mutex_lock(&mux);//zona crítica
+					sem_wait(semaforo);//zona crítica
+					r =read(pipefd[0],&ass,CHAR);//zona crítica
+
 					hashing(hashList);
+
+					write(pipefd[1],"H",CHAR);//Fin
+					sem_post(semaforo);//Fin
+					pthread_mutex_unlock(&mux);//Fin
+
 					r = recv(clientfd,&optionInMenuAux,sizeof(int),0);
 					if(optionInMenuAux==1){
 						printf("salí de 1\n");
 						optionInMenu = false;
 					}
+
+					pthread_mutex_lock(&mux);//zona crítica
+					sem_wait(semaforo);//zona crítica
+					r = read(pipefd[0],&ass,CHAR);//zona crítica
 					log_doc(position,option);
+					write(pipefd[1],"H",CHAR);//Fin
+					sem_post(semaforo);//Fin
+					pthread_mutex_unlock(&mux);//Fin
 				}
 				break;
 			case 2:
@@ -337,7 +387,15 @@ void *function(void *args) {// la función para todooooo
 					regiNum = registers_number();
 					r = send(clientfd ,&regiNum ,sizeof(int),0);
 					r = recv(clientfd ,&searchDat ,sizeof(int) ,0 );
+
+					pthread_mutex_lock(&mux);//zona crítica
+					sem_wait(semaforo);//zona crítica
+					r =read(pipefd[0],&ass,CHAR);//zona crítica
 					buscar_registro(searchDat);//se llama a la función de buscar registro
+					write(pipefd[1],"H",CHAR);//Fin
+					sem_post(semaforo);//Fin
+					pthread_mutex_unlock(&mux);//Fin
+
 					r = recv(clientfd ,&eleccion ,sizeof(int) ,0 );
 					if(eleccion == 1){
 						changes(searchDat);
@@ -348,7 +406,13 @@ void *function(void *args) {// la función para todooooo
 						optionInMenu = false;
 					}
 					
+					pthread_mutex_lock(&mux);//zona crítica
+					sem_wait(semaforo);//zona crítica
+					r = read(pipefd[0],&ass,CHAR);//zona crítica
 					log_doc(searchDat,option);
+					write(pipefd[1],"H",CHAR);//Fin
+					sem_post(semaforo);//Fin
+					pthread_mutex_unlock(&mux);//Fin
 				}
 				break;
 			case 3:
@@ -357,16 +421,39 @@ void *function(void *args) {// la función para todooooo
 					regiNum = registers_number();
 					r = send(clientfd ,&regiNum ,sizeof(int),0);
 					r = recv(clientfd ,&delDat ,sizeof(int) ,0 );
+
+					pthread_mutex_lock(&mux);//zona crítica
+					sem_wait(semaforo);//zona crítica
+					r =read(pipefd[0],&ass,CHAR);//zona crítica
 					eliminar_registro(delDat);//se llama a la función de eliminar
+					write(pipefd[1],"H",CHAR);//Fin
+					sem_post(semaforo);//Fin
+					pthread_mutex_unlock(&mux);//Fin
+
 					for(int j = 0;j<1000000;j++)// al eliminar un dato se actualiza el hash
 						hashList[j]= 0;
+
+					pthread_mutex_lock(&mux);//zona crítica
+					sem_wait(semaforo);//zona crítica
+					r =read(pipefd[0],&ass,CHAR);//zona crítica
 					hashing(hashList);
+					write(pipefd[1],"H",CHAR);//Fin
+					sem_post(semaforo);//Fin
+					pthread_mutex_unlock(&mux);//Fin
+
 					r = recv(clientfd,&optionInMenuAux,sizeof(int),0);
 					if(optionInMenuAux==1){
 						printf("salí de 3\n");
 						optionInMenu = false;
 					}
+
+					pthread_mutex_lock(&mux);//zona crítica
+					sem_wait(semaforo);//zona crítica
+					r = read(pipefd[0],&ass,CHAR);//zona crítica
 					log_doc(delDat,option);
+					write(pipefd[1],"H",CHAR);//Fin
+					sem_post(semaforo);//Fin
+					pthread_mutex_unlock(&mux);//Fin
 				}
 			
 				break;
@@ -374,22 +461,41 @@ void *function(void *args) {// la función para todooooo
 				while (optionInMenu == true){
 					for(int j = 0;j<1000000;j++)//se vuelve a ejecutar la funcion de hash para agregar el nuevo elemento
 						hashList[j]=0;
+
+					pthread_mutex_lock(&mux);//zona crítica
+					sem_wait(semaforo);//zona crítica
+					r =read(pipefd[0],&ass,CHAR);//zona crítica
 					hashing(hashList);
+					write(pipefd[1],"H",CHAR);//Fin
+					sem_post(semaforo);//Fin
+					pthread_mutex_unlock(&mux);//Fin
+
 					printf("estoy en 4\n");
 					r = recv(clientfd ,name ,NAME ,0 );
 					printf("%s",name);
+
+					pthread_mutex_lock(&mux);//zona crítica
+					sem_wait(semaforo);//zona crítica
+					r =read(pipefd[0],&ass,CHAR);//zona crítica
 					plaSea1 = search_i(hashList, name);//se llama a la función de buscar por nombre y retorna el primer encuentro
+					write(pipefd[1],"H",CHAR);//Fin
+					sem_post(semaforo);//Fin
+					pthread_mutex_unlock(&mux);//Fin
+
 					r = send(clientfd ,&plaSea1 ,sizeof(int),0);
-					if(plaSea1 != 0){
-						plaSea2 = search_f(hashList, name, plaSea1);//se llama a la función de buscar por nombre y retorna el último encuentro
-						r = send(clientfd ,&plaSea2 ,sizeof(int),0);						
-					}
 					r = recv(clientfd,&optionInMenuAux,sizeof(int),0);
 					if(optionInMenuAux==1){
 						printf("salí de 4\n");
 						optionInMenu = false;
 					}
+
+					pthread_mutex_lock(&mux);//zona crítica
+					sem_wait(semaforo);//zona crítica
+					r = read(pipefd[0],&ass,CHAR);//zona crítica
 					log_doc_name(name,option);
+					write(pipefd[1],"H",CHAR);//Fin
+					sem_post(semaforo);//Fin
+					pthread_mutex_unlock(&mux);//Fin
 				}
 				break;
 			case 5:
@@ -404,12 +510,19 @@ void *function(void *args) {// la función para todooooo
 }
 
 
-int main () {
+int main () {	
 	pthread_t hilo[NUMTHREADS];
 	int servfd,clientfd[NUMTHREADS];
 	int r , position = 0, regiNum = 0, searchDat = 0,eleccion = 0, delDat = 0, plaSea1 = 0,plaSea2 = 0,i=0;
 	int option = 1,tru=0;
 	char name[32];
+
+	pthread_mutex_init(&mux,NULL);//MUTEX
+
+	semaforo = sem_open("semaforo1",O_CREAT,0700,SEMINIT);// se crea el SEMAFORO
+
+	r = pipe(pipefd);//PILA
+	write(pipefd[1],"H",CHAR);
 
 	struct sockaddr_in server,cliente;
 	socklen_t tama,tamac;

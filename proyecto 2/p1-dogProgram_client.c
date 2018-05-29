@@ -168,13 +168,6 @@ int main () {
 					r = recv( clientfd , &plaSea1 , sizeof(int) ,0 );
 					if(plaSea1 == 0){
 						printf("No se encuentra el nombre dentro del archivo \n");
-					}else{
-						r = recv( clientfd , &plaSea2 , sizeof(int) ,0 );
-						if(plaSea1==plaSea2){
-							printf("se encuentra en la posición %d \n",plaSea1);
-						}else{
-							printf("se encuentra desde la posición %d hasta la posición %d \n",plaSea1,plaSea2);
-						}
 					}
 					printf("Ingrese 1 si desea volver al menú principal\n");
 					printf("Ingrese otro numero si desea ver otro registro\n");
